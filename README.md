@@ -1,6 +1,7 @@
 # Sand fall simulator
 
 Sandfall simulator. Inspired by [Sandtrix+](https://store.steampowered.com/app/2546310/Sandtrix/?l=japanese).
+This is an etude by curiosity.
 
 ## Run
 
