@@ -71,6 +71,10 @@ func (box *Sandbox) setCell(x, y int, c Cell) {
 	box.buf[box.index(x, y)] = c
 }
 
+func (box *Sandbox) isEmpty(x, y int) bool {
+	return box.getCell(x, y) == empty
+}
+
 // fallDir determines whether the cell falls to the left or right.
 // 0:not fall, 1:left, 2:right
 func (box *Sandbox) fallDir(wallLeft, wallRight bool) int {
@@ -90,43 +94,78 @@ func (box *Sandbox) fallDir(wallLeft, wallRight bool) int {
 	return int(rand.Int64())%2 + 1
 }
 
+func (box *Sandbox) update1(x, y int) bool {
+	c := box.getCell(x, y)
+	if c == empty || c == wall {
+		return false
+	}
+
+	// Fall to bottom
+	if b := box.getCell(x, y-1); b == empty {
+		box.setCell(x, y-1, c)
+		box.setCell(x, y, empty)
+		return true
+	}
+
+	// Check if it can be dropped to the bottom-left or the
+	// bottom-right
+	//
+	// Make asymmetric decisions for left and right. The left cell is
+	// dropped in the previous loop, so only the bottom-left cell needs
+	// to be checked. The right cell is not yet dropped, so the
+	// bottom-right cell needs to be checked along with it.
+	wallLeft := box.getCell(x-1, y-1) != empty
+	wallRight := box.getCell(x+1, y-1) != empty || box.getCell(x+1, y) != empty
+	switch box.fallDir(wallLeft, wallRight) {
+	case 0:
+		return false
+	case 1:
+		box.setCell(x-1, y-1, c)
+	case 2:
+		box.setCell(x+1, y-1, c)
+	}
+	box.setCell(x, y, empty)
+	return true
+}
+
+var movePos = []struct{ w, dx, dy int }{
+	{30, 0, -1},
+	{1, -1, -1},
+	{1, 1, -1},
+	{0, -1, 0},
+	{0, 1, 0},
+}
+
+func (box *Sandbox) update2(x, y int) bool {
+	c := box.getCell(x, y)
+	if c == empty || c == wall {
+		return false
+	}
+
+	r := rand.IntN(32)
+	for _, e := range movePos {
+		if r >= e.w {
+			r -= e.w
+			continue
+		}
+		if box.isEmpty(x+e.dx, y+e.dy) {
+			box.setCell(x+e.dx, y+e.dy, c)
+			box.setCell(x, y, empty)
+			return true
+		}
+		break
+	}
+	return false
+}
+
 func (box *Sandbox) Update() int {
 	updated := 0
 	// Fall all cells
 	for y := 1; y < box.h-1; y++ {
 		for x := 1; x < box.w-1; x++ {
-			c := box.getCell(x, y)
-			if c == empty || c == wall {
-				continue
-			}
-
-			// Fall to bottom
-			if b := box.getCell(x, y-1); b == empty {
-				box.setCell(x, y-1, c)
-				box.setCell(x, y, empty)
+			if box.update2(x, y) {
 				updated++
-				continue
 			}
-
-			// Check if it can be dropped to the bottom-left or the
-			// bottom-right
-			//
-			// Make asymmetric decisions for left and right. The left cell is
-			// dropped in the previous loop, so only the bottom-left cell needs
-			// to be checked. The right cell is not yet dropped, so the
-			// bottom-right cell needs to be checked along with it.
-			wallLeft := box.getCell(x-1, y-1) != empty
-			wallRight := box.getCell(x+1, y-1) != empty || box.getCell(x+1, y) != empty
-			switch box.fallDir(wallLeft, wallRight) {
-			case 0:
-				continue
-			case 1:
-				box.setCell(x-1, y-1, c)
-			case 2:
-				box.setCell(x+1, y-1, c)
-			}
-			box.setCell(x, y, empty)
-			updated++
 		}
 	}
 	return updated
